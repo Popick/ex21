@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+    android:id="@+id/homeMenuBtn"
+    android:title="Home"
+    android:orderInCategory="100" />
+    <item
+    android:id="@+id/usersMenuBtn"
+    android:title="Users"
+    android:orderInCategory="200" />
+    <item
+    android:id="@+id/companiesMenuBtn"
+    android:title="Restaurants"
+    android:orderInCategory="300" />
+    <item
+    android:id="@+id/ordersMenuBtn"
+    android:title="Orders"
+    android:orderInCategory="400" />
+    <item
+    android:id="@+id/creditsMenuBtn"
+    android:title="Credits"
+    android:orderInCategory="500" />
+
+
+</menu>
