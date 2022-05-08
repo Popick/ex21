@@ -1,41 +1,46 @@
 package com.example.ex21;
 
-import android.content.ContentValues;
+import static com.example.ex21.FBref.refUsers;
+
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
 
 public class new_user_activity extends AppCompatActivity {
     SQLiteDatabase db;
-    HelperDB hlp;
-
+    ArrayList<String> ids = new ArrayList<>();
     EditText idET, fnameET, lnameET, companyET, phoneET;
-    String id, a;
-    int sum = 0, bikoret, num, allValid;
-    ContentValues cv;
+    String id;
+    int allValid;
     /**
      * @author Etay Sabag <itay45520@gmail.com>
-     * @version    1.6
-     * @since     5/2/2022
+     * @version    2.2
+     * @since     4/5/2022
      *  activity for making a new user
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new_user);
-        hlp = new HelperDB(this);
 
         idET = (EditText) findViewById(R.id.inputid);
         fnameET = (EditText) findViewById(R.id.inputfname);
         lnameET = (EditText) findViewById(R.id.inputlname);
         companyET = (EditText) findViewById(R.id.inputcompany);
         phoneET = (EditText) findViewById(R.id.inputphonenumber);
+        idVerification();
 
-        cv = new ContentValues();
 
     }
 
@@ -60,9 +65,12 @@ public class new_user_activity extends AppCompatActivity {
         } else {
             allValid++;
         }
-        if (!idVerification()) {
-            idET.setError("Invalid ID");
-        } else {
+        if ((ids.contains(idET.getText().toString()))) {
+            idET.setError("Already Exists!");
+        } else if(idET.getText().toString().length()!=9){
+            idET.setError("Invalid!");
+        }
+        else {
             allValid++;
         }
         if (!(phoneET.getText().length() == 10)) {
@@ -71,18 +79,7 @@ public class new_user_activity extends AppCompatActivity {
             allValid++;
         }
         if (allValid == 5) {
-
-            cv.put(com.example.ex21.Users.FNAME, fnameET.getText().toString());
-            cv.put(com.example.ex21.Users.LNAME, lnameET.getText().toString());
-            cv.put(com.example.ex21.Users.COMPANY, companyET.getText().toString());
-            cv.put(com.example.ex21.Users.ID, idET.getText().toString());
-            cv.put(com.example.ex21.Users.PHONE, phoneET.getText().toString());
-            cv.put(com.example.ex21.Users.ACTIVE, 1);
-
-            db = hlp.getWritableDatabase();
-            db.insert(com.example.ex21.Users.TABLE_USERS, null, cv);
-            db.close();
-
+            refUsers.child(idET.getText().toString()).setValue(new Users(lnameET.getText().toString(),fnameET.getText().toString(),companyET.getText().toString(),idET.getText().toString(),phoneET.getText().toString(),"1"));
             Toast.makeText(this, "Saved Successfully!", Toast.LENGTH_LONG).show();
             finish();
         }
@@ -100,30 +97,20 @@ public class new_user_activity extends AppCompatActivity {
      * The function checks if an ID is valid.
      * @return true if ID is valid, false if the id is invalid.
      */
-    public boolean idVerification() {
-        sum = 0;
+    public void idVerification() {
+        ids.clear();
         id = idET.getText().toString();
-
-        if (id.length() == 9) {
-            for (int i = 0; i < 8; i++) {
-                if (i % 2 == 0) {
-                    num = Character.getNumericValue(id.charAt(i));
-                    sum = sum + num;
-                } else {
-                    num = Character.getNumericValue(id.charAt(i));
-                    if ((num * 2) > 9) {
-                        a = Integer.toString(num * 2);
-                        sum = sum + Character.getNumericValue(a.charAt(0))+Character.getNumericValue(a.charAt(1));
-                    } else
-                        sum = sum + (num * 2);
+        refUsers.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    ids.add((String) data.getKey());
                 }
             }
-            bikoret = Character.getNumericValue(id.charAt(8));
-
-            return (sum + bikoret) % 10 == 0;
-        } else {
-            return false;
-        }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
     }
 
 }

@@ -1,11 +1,11 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refComps;
+import static com.example.ex21.FBref.refUsers;
+
 import android.app.AlertDialog;
-import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -16,8 +16,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.4
- * @since     19/2/2022
+ * @version 2
+ * @since 4/5/2022
  *  activity for viewing and editing a specific company
  */
 public class view_company_activity extends AppCompatActivity {
@@ -25,21 +25,16 @@ public class view_company_activity extends AppCompatActivity {
     Intent gi;
     TextView nameTV, taxTV, sPhoneTV, mPhoneTV;
     Button greenBtn, redBtn, orangeBtn;
-    SQLiteDatabase db;
-    HelperDB hlp;
-    Cursor crsr;
-    ContentValues cv;
-    String companyKeyId = "";
     AlertDialog.Builder adb;
     boolean isActive = true;
-    int col1, col2, col3, col4, col5;
+    Companies comp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_view_company);
         gi = getIntent();
-        companyKeyId = gi.getStringExtra("id");
+        comp = (Companies) getIntent().getSerializableExtra("cmp");
 
 
         redBtn = (Button) findViewById(R.id.redButton);
@@ -50,13 +45,8 @@ public class view_company_activity extends AppCompatActivity {
         mPhoneTV = (TextView) findViewById(R.id.inputmphone);
         sPhoneTV = (TextView) findViewById(R.id.inputsphone);
 
-        hlp = new HelperDB(this);
-        db = hlp.getWritableDatabase();
-        db.close();
-
 
         fillCompany();
-        cv = new ContentValues();
 
         if (!isActive) {
             orangeBtn.setText("Restore Comapny");
@@ -68,24 +58,12 @@ public class view_company_activity extends AppCompatActivity {
     * The function loads the selected company's data to the all the text views on the screen.
     */
     public void fillCompany() {
-        String selection = Companies.KEY_ID + "=?";
-        String[] selectionArgs = {companyKeyId};
-        db = hlp.getReadableDatabase();
-        crsr = db.query(Companies.TABLE_COMPANIES, null, selection, selectionArgs, null, null, null);
-        col1 = crsr.getColumnIndex(Companies.NAME);
-        col2 = crsr.getColumnIndex(Companies.TAX_ID);
-        col3 = crsr.getColumnIndex(Companies.MAIN_PHONE);
-        col4 = crsr.getColumnIndex(Companies.SECONDARY_PHONE);
-        col5 = crsr.getColumnIndex(Companies.ACTIVE);
 
-        crsr.moveToFirst();
-        nameTV.setText(crsr.getString(col1));
-        taxTV.setText(crsr.getString(col2));
-        mPhoneTV.setText(crsr.getString(col3));
-        sPhoneTV.setText(crsr.getString(col4));
-        isActive = crsr.getString(col5).equals("1");
-        db.close();
-        crsr.close();
+        nameTV.setText(comp.getNAME());
+        taxTV.setText(comp.getTAX_ID());
+        mPhoneTV.setText(comp.getMAIN_PHONE());
+        sPhoneTV.setText(comp.getSECONDARY_PHONE());
+        isActive = comp.getACTIVE().equals("1");
     }
     /**
      * The function checks if in edit mode or not, if in edit mode it will cancel all the changes
@@ -98,7 +76,6 @@ public class view_company_activity extends AppCompatActivity {
             greenBtn.setText("EDIT");
             redBtn.setText("BACK");
             nameTV.setEnabled(false);
-            taxTV.setEnabled(false);
             mPhoneTV.setEnabled(false);
             sPhoneTV.setEnabled(false);
             orangeBtn.setEnabled(false);
@@ -114,20 +91,17 @@ public class view_company_activity extends AppCompatActivity {
             greenBtn.setText("SAVE");
             redBtn.setText("CANCEL");
             nameTV.setEnabled(true);
-            taxTV.setEnabled(true);
             mPhoneTV.setEnabled(true);
             sPhoneTV.setEnabled(true);
             orangeBtn.setEnabled(true);
         } else if (greenBtn.getText().toString().equals("SAVE")) {
-            ContentValues cv = new ContentValues();
-            db = hlp.getWritableDatabase();
-            cv.put(Companies.NAME, nameTV.getText().toString());
-            cv.put(Companies.TAX_ID, taxTV.getText().toString());
-            cv.put(Companies.MAIN_PHONE, mPhoneTV.getText().toString());
-            cv.put(Companies.SECONDARY_PHONE, sPhoneTV.getText().toString());
-            db.update(Companies.TABLE_COMPANIES, cv, com.example.ex21.Users.KEY_ID + "=?", new String[]{companyKeyId});
 
-            db.close();
+            comp.setNAME(nameTV.getText().toString());
+            comp.setMAIN_PHONE(mPhoneTV.getText().toString());
+            comp.setSECONDARY_PHONE(sPhoneTV.getText().toString());
+
+            refComps.child(comp.getTAX_ID()).setValue(comp);
+
 
             Toast.makeText(this, "Saved Successfully!", Toast.LENGTH_LONG).show();
             finish();
@@ -144,14 +118,14 @@ public class view_company_activity extends AppCompatActivity {
         adb.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
-                ContentValues cv = new ContentValues();
-                if (isActive) cv.put(Companies.ACTIVE, 0);
-                else cv.put(Companies.ACTIVE, 1);
-                db = hlp.getWritableDatabase();
-                db.update(Companies.TABLE_COMPANIES, cv, Companies.KEY_ID + "=?", new String[]{companyKeyId});
-                db.close();
+                if (isActive) comp.setACTIVE("0");
+                else comp.setACTIVE("1");
 
-                Toast.makeText(view_company_activity.this, "Deleted Successfully!", Toast.LENGTH_LONG).show();
+                refComps.child(comp.getTAX_ID()).setValue(comp);
+
+
+                if (isActive) Toast.makeText(view_company_activity.this, "Deleted Successfully!", Toast.LENGTH_LONG).show();
+                else Toast.makeText(view_company_activity.this, "Restored Successfully!", Toast.LENGTH_LONG).show();
                 finish();
             }
         });

@@ -1,10 +1,10 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refUsers;
+
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,31 +13,36 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version 2.0
- * @since 5/2/2022
+ * @version 2
+ * @since 4/5/2022
  * The workers' table activity, the user can see all the workers in the app
  * The user can view and edit each one and add new workers.
  */
 public class users_screen extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
     ListView lv;
-    SQLiteDatabase db;
-    HelperDB hlp;
     Intent newUserIntent, viewUserIntent, siViewOrder, siHome, siCompanies, siCredits;
-    Cursor crsr;
-    ArrayList<String> tbl;
-    ArrayList<String> cardIDs;
+    ValueEventListener usrListener;
+    ArrayList<String> usrList = new ArrayList<String>();
+    ArrayList<Users> usrValues = new ArrayList<Users>();
     ArrayAdapter<String> adp;
     AlertDialog.Builder adb;
     final String[] filterAD = {"Active", "Inactive"};
-    final String[] sortAD = {"Card-ID", "Name A→Z", "Name Z→A", "Company A→Z"};
-    String filter = "1", sort;
+    final String[] sortAD = {"ID", "First Name", "Last Name", "Company"};
+    String filter = "1";
+    String sort = "id";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,8 +50,6 @@ public class users_screen extends AppCompatActivity implements AdapterView.OnIte
         setContentView(R.layout.activity_table_screen);
         newUserIntent = new Intent(this, com.example.ex21.new_user_activity.class);
         viewUserIntent = new Intent(this, view_user_activity.class);
-        hlp = new HelperDB(this);
-
         siHome = new Intent(this, MainActivity.class);
         siCompanies = new Intent(this, com.example.ex21.comp_screen.class);
         siViewOrder = new Intent(this, order_screen.class);
@@ -55,13 +58,27 @@ public class users_screen extends AppCompatActivity implements AdapterView.OnIte
         lv = (ListView) findViewById(R.id.listview);
         lv.setOnItemClickListener(this);
         lv.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+
+
         update_users(filter, sort);
+
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        usrList.clear();
+        usrValues.clear();
         update_users(filter, sort);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (usrListener != null) {
+            refUsers.removeEventListener(usrListener);
+        }
     }
 
     /**
@@ -73,43 +90,62 @@ public class users_screen extends AppCompatActivity implements AdapterView.OnIte
      *                  sort the workers that the user requests from the query.
      */
     public void update_users(String filterPar, String sortPar) {
-        db = hlp.getWritableDatabase();
-        tbl = new ArrayList<>();
-        cardIDs = new ArrayList<>();
-        if (filterPar != null)
-            crsr = db.query(com.example.ex21.Users.TABLE_USERS, null, com.example.ex21.Users.ACTIVE + "=?", new String[]{filterPar}, null, null, sortPar);
-        else
-            crsr = db.query(com.example.ex21.Users.TABLE_USERS, null, null, null, null, null, sortPar);
 
-        int col1 = crsr.getColumnIndex(com.example.ex21.Users.KEY_ID);
-        int col2 = crsr.getColumnIndex(com.example.ex21.Users.FNAME);
-        int col3 = crsr.getColumnIndex(com.example.ex21.Users.LNAME);
+        Query query = refUsers.orderByChild(sortPar);
+        usrListener = new ValueEventListener() {
 
-        crsr.moveToFirst();
-        while (!crsr.isAfterLast()) {
-            int key = crsr.getInt(col1);
-            String fname = crsr.getString(col2);
-            String lname = crsr.getString(col3);
-            String tmp = "" + key + ". " + fname + " " + lname;
-            tbl.add(tmp);
-            cardIDs.add(key + "");
-            crsr.moveToNext();
-        }
-        crsr.close();
-        db.close();
-        adp = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, tbl);
-        lv.setAdapter(adp);
+
+            /**
+             * This method will be called with a snapshot of the data at this location. It will also be called
+             * each time that data changes.
+             *
+             * @param dS The current data at the location
+             */
+
+            @Override
+            public void onDataChange(DataSnapshot dS) {
+                usrList.clear();
+                usrValues.clear();
+                for (DataSnapshot data : dS.getChildren()) {
+                    String str1 = (String) data.getKey();
+                    Users usrTmp = data.getValue(Users.class);
+                    if (filterPar == null || usrTmp.getACTIVE().equals(filterPar)){
+                        usrValues.add(usrTmp);
+                        usrList.add(usrTmp.getFNAME() + " " + usrTmp.getLNAME() + " (id: " + str1 + ")");
+                    }
+                }
+                adp = new ArrayAdapter<String>(users_screen.this, R.layout.support_simple_spinner_dropdown_item, usrList);
+                lv.setAdapter(adp);
+            }
+
+
+            /**
+             * This method will be triggered in the event that this listener either failed at the server, or
+             * is removed as a result of the security and Firebase Database rules. For more information on
+             * securing your data, see: <a
+             * href="https://firebase.google.com/docs/database/security/quickstart" target="_blank"> Security
+             * Quickstart</a>
+             *
+             * @param error A description of the error that occurred
+             */
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        query.addValueEventListener(usrListener);
+
     }
 
+
     /**
-     *    The function sends you activity where you can add a new worker.
+     * The function sends you activity where you can add a new worker.
      */
     public void addNewItem(View view) {
         startActivity(newUserIntent);
     }
 
     /**
-     *    The function sends you to the last activity.
+     * The function sends you to the last activity.
      */
     public void back(View view) {
         finish();
@@ -126,13 +162,13 @@ public class users_screen extends AppCompatActivity implements AdapterView.OnIte
             @Override
             public void onClick(DialogInterface dialogInterface, int pos) {
                 if (pos == 0) {
-                    sort = com.example.ex21.Users.KEY_ID;
+                    sort = "id";
                 } else if (pos == 1) {
-                    sort = com.example.ex21.Users.FNAME;
+                    sort = "fname";
                 } else if (pos == 2) {
-                    sort = com.example.ex21.Users.FNAME + " DESC";
+                    sort = "lname";
                 } else if (pos == 3) {
-                    sort = com.example.ex21.Users.COMPANY;
+                    sort = "company";
                 }
                 update_users(filter, sort);
             }
@@ -196,8 +232,7 @@ public class users_screen extends AppCompatActivity implements AdapterView.OnIte
      */
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        viewUserIntent.putExtra("id", cardIDs.get(position));
-
+        viewUserIntent.putExtra("usr", usrValues.get(position));
 
         startActivity(viewUserIntent);
     }

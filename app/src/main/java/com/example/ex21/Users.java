@@ -1,18 +1,80 @@
 package com.example.ex21;
+
+import java.io.Serializable;
+
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version 1.1
- * @since 5/2/2022
+ * @version 2
+ * @since 4/5/2022
  * Constants for the users' table in the data base
  */
-public class Users {
-    public static final String TABLE_USERS = "Users";
-    public static final String KEY_ID = "_id";
-    public static final String LNAME="LastName";
-    public static final String FNAME="FirstName";
-    public static final String COMPANY="Company";
-    public static final String ID="UserId";
-    public static final String PHONE="PhoneNumber";
-    public static final String ACTIVE="Active";
+public class Users implements Serializable {
+    private String LNAME;
+    private String FNAME;
+    private String COMPANY;
+    private String ID;
+    private String PHONE;
+    private String ACTIVE;
+
+    public Users(String LNAME, String FNAME, String COMPANY, String ID, String PHONE, String ACTIVE) {
+        this.LNAME = LNAME;
+        this.FNAME = FNAME;
+        this.COMPANY = COMPANY;
+        this.ID = ID;
+        this.PHONE = PHONE;
+        this.ACTIVE = ACTIVE;
+    }
+    public Users(){}
+
+    public Users(String user) {
+    }
+
+    public String getLNAME() {
+        return LNAME;
+    }
+
+    public void setLNAME(String LNAME) {
+        this.LNAME = LNAME;
+    }
+
+    public String getFNAME() {
+        return FNAME;
+    }
+
+    public void setFNAME(String FNAME) {
+        this.FNAME = FNAME;
+    }
+
+    public String getCOMPANY() {
+        return COMPANY;
+    }
+
+    public void setCOMPANY(String COMPANY) {
+        this.COMPANY = COMPANY;
+    }
+
+    public String getID() {
+        return ID;
+    }
+
+    public void setID(String ID) {
+        this.ID = ID;
+    }
+
+    public String getPHONE() {
+        return PHONE;
+    }
+
+    public void setPHONE(String PHONE) {
+        this.PHONE = PHONE;
+    }
+
+    public String getACTIVE() {
+        return ACTIVE;
+    }
+
+    public void setACTIVE(String ACTIVE) {
+        this.ACTIVE = ACTIVE;
+    }
 }
 

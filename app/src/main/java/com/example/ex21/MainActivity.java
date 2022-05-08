@@ -1,5 +1,7 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refUsers;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -8,10 +10,14 @@ import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version 1.4
- * @since 5/2/2022
+ * @version 2
+ * @since 4/5/2022
  * The main activity of the app.
  */
 public class MainActivity extends AppCompatActivity {
@@ -29,6 +35,10 @@ public class MainActivity extends AppCompatActivity {
         siViewOrder = new Intent(this, order_screen.class);
         siCredits = new Intent(this, credits_activity.class);
         siOrder = new Intent(this, com.example.ex21.new_order_activity.class);
+
+
+
+
     }
 
     /**

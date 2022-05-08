@@ -1,37 +1,42 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refComps;
+import static com.example.ex21.FBref.refMeals;
+import static com.example.ex21.FBref.refUsers;
+
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.4
- * @since     21/2/2022
+ * @version 2
+ * @since 4/5/2022
  *  activity for viewing a specific order
  */
 public class view_order_activity extends AppCompatActivity {
     Intent gi;
     TextView appetizerTV, mainTV, sideTV, dessertTV, drinksTV, userTV, restTV, dateTV;
-    SQLiteDatabase db;
-    HelperDB hlp;
-    Cursor crsr;
-    String userKeyId = "";
-    int col1, col2, col3, col4, col5;
     Intent viewCompanyIntent, viewUserIntent;
-
+    Orders order;
+    Meals meal;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_view_order);
         gi = getIntent();
-        userKeyId = gi.getStringExtra("id");
+        order = (Orders) getIntent().getSerializableExtra("order");
+        meal = (Meals) getIntent().getSerializableExtra("meal");
+
 
         viewUserIntent = new Intent(this, com.example.ex21.view_user_activity.class);
         viewCompanyIntent = new Intent(this, com.example.ex21.view_company_activity.class);
@@ -46,58 +51,58 @@ public class view_order_activity extends AppCompatActivity {
         restTV = (TextView) findViewById(R.id.restTV);
         dateTV = (TextView) findViewById(R.id.dateTV);
 
-        hlp = new HelperDB(this);
 
 
         fillOrder();
     }
     /**
-     * The function loads the selected order's data to the all the text views on the screen.
+     * The function loads the selecteSSd order's data to the all the text views on the screen.
      */
     public void fillOrder() {
-        String selection = com.example.ex21.Meals.KEY_ID + "=?";
-        String[] selectionArgs = {userKeyId};
-        db = hlp.getReadableDatabase();
-        crsr = db.query(com.example.ex21.Meals.TABLE_MEALS, null, selection, selectionArgs, null, null, null);
-        col1 = crsr.getColumnIndex(com.example.ex21.Meals.APPETIZER);
-        col2 = crsr.getColumnIndex(com.example.ex21.Meals.MAIN);
-        col3 = crsr.getColumnIndex(com.example.ex21.Meals.SIDE);
-        col4 = crsr.getColumnIndex(com.example.ex21.Meals.DESSERT);
-        col5 = crsr.getColumnIndex(com.example.ex21.Meals.DRINK);
 
-        crsr.moveToFirst();
-        appetizerTV.setText("Appetizer: \n" + crsr.getString(col1));
-        mainTV.setText("Main Dish: \n" + crsr.getString(col2));
-        sideTV.setText("Side Meal: \n" + crsr.getString(col3));
-        dessertTV.setText("Dessert: \n" + crsr.getString(col4));
-        drinksTV.setText("Drinks: \n" + crsr.getString(col5));
 
-        db.close();
-        crsr.close();
+        appetizerTV.setText("Appetizer: \n" + meal.getAPPETIZER());
+        mainTV.setText("Main Dish: \n" + meal.getMAIN());
+        sideTV.setText("Side Meal: \n" + meal.getSIDE());
+        dessertTV.setText("Dessert: \n" + meal.getDESSERT());
+        drinksTV.setText("Drinks: \n" + meal.getDRINK());
 
-        selection = com.example.ex21.Orders.KEY_ID + "=?";
-        db = hlp.getReadableDatabase();
-        crsr = db.query(com.example.ex21.Orders.TABLE_ORDERS, null, selection, selectionArgs, null, null, null);
-        col1 = crsr.getColumnIndex(com.example.ex21.Orders.USER_NAME);
-        col2 = crsr.getColumnIndex(com.example.ex21.Orders.USER_ID);
-        col3 = crsr.getColumnIndex(com.example.ex21.Orders.RESTAURANT_NAME);
-        col4 = crsr.getColumnIndex(com.example.ex21.Orders.RESTAURANT_ID);
-        col5 = crsr.getColumnIndex(com.example.ex21.Orders.DATE);
 
-        crsr.moveToFirst();
-        userTV.setText("Worker Name: \n" + crsr.getString(col1));
-        restTV.setText("Restaurant Name: \n" + crsr.getString(col3));
-        dateTV.setText(crsr.getString(col5));
+        userTV.setText("Worker Name: \n" + order.getUSER_NAME());
+        restTV.setText("Restaurant Name: \n" + order.getRESTAURANT_NAME());
+        dateTV.setText(order.getDATE());
 
-        viewUserIntent.putExtra("id", crsr.getString(col2));
-        viewCompanyIntent.putExtra("id", crsr.getString(col4));
+        refUsers.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    if (order.getUSER_ID().equals((String) data.getKey())) {
+                        viewUserIntent.putExtra("usr", data.getValue(Users.class));
+                    }
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
+        refComps.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    if (order.getRESTAURANT_ID().equals((String) data.getKey())) {
+                        viewCompanyIntent.putExtra("cmp", data.getValue(Companies.class));
+                    }
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
 
-        db.close();
-        crsr.close();
 
     }
     /**
-     * The function sends the user back to the last activity.
+     *
      */
     public void back(View view) {
         finish();

@@ -1,11 +1,11 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refUsers;
+
 import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -14,23 +14,24 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
+
 
 public class view_user_activity extends AppCompatActivity {
     Intent gi;
     TextView idTV, fnameTV, lnameTV, companyTV, phoneTV;
     Button greenBtn, redBtn, orangeBtn;
-    SQLiteDatabase db;
-    HelperDB hlp;
-    Cursor crsr;
     ContentValues cv;
-    String userKeyId = "";
+    ArrayList<Users> usrValues = new ArrayList<Users>();
+    Users user;
+    String userPos = "";
     AlertDialog.Builder adb;
     boolean isActive = true;
-    int col1, col2, col3, col4, col5,col6;
+
     /**
      * @author Etay Sabag <itay45520@gmail.com>
-     * @version    1.6
-     * @since     5/2/2022
+     * @version 2
+     * @since 4/5/2022
      *  activity for viewing and editing a specific user
      */
     @Override
@@ -38,7 +39,7 @@ public class view_user_activity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_view_user);
         gi = getIntent();
-        userKeyId = gi.getStringExtra("id");
+        user = (Users) getIntent().getSerializableExtra("usr");
 
 
         redBtn = (Button) findViewById(R.id.redButton);
@@ -50,13 +51,10 @@ public class view_user_activity extends AppCompatActivity {
         companyTV = (TextView) findViewById(R.id.inputcompany);
         phoneTV = (TextView) findViewById(R.id.inputphonenumber);
 
-        hlp = new HelperDB(this);
-        db = hlp.getWritableDatabase();
-        db.close();
+
 
 
         fillUser();
-        cv = new ContentValues();
 
         if (!isActive){
             orangeBtn.setText("Restore Employee");
@@ -68,26 +66,16 @@ public class view_user_activity extends AppCompatActivity {
      * The function loads the selected worker's data to the all the text views on the screen.
      */
     public void fillUser(){
-        String selection = com.example.ex21.Users.KEY_ID + "=?";
-        String[] selectionArgs = {userKeyId};
-        db = hlp.getReadableDatabase();
-        crsr = db.query(com.example.ex21.Users.TABLE_USERS, null, selection, selectionArgs, null, null, null);
-        col1 = crsr.getColumnIndex(com.example.ex21.Users.FNAME);
-        col2 = crsr.getColumnIndex(com.example.ex21.Users.LNAME);
-        col3 = crsr.getColumnIndex(com.example.ex21.Users.COMPANY);
-        col4 = crsr.getColumnIndex(com.example.ex21.Users.ID);
-        col5 = crsr.getColumnIndex(com.example.ex21.Users.PHONE);
-        col6 = crsr.getColumnIndex(com.example.ex21.Users.ACTIVE);
+        String[] selectionArgs = {userPos};
 
-        crsr.moveToFirst();
-        fnameTV.setText(crsr.getString(col1));
-        lnameTV.setText(crsr.getString(col2));
-        companyTV.setText(crsr.getString(col3));
-        idTV.setText(crsr.getString(col4));
-        phoneTV.setText(crsr.getString(col5));
-        isActive = crsr.getString(col6).equals("1");
-        db.close();
-        crsr.close();
+        fnameTV.setText(user.getFNAME());
+        lnameTV.setText(user.getLNAME());
+        companyTV.setText(user.getCOMPANY());
+        idTV.setText(user.getID());
+        phoneTV.setText(user.getPHONE());
+        isActive = user.getACTIVE().equals("1");
+
+
     }
     /**
      * The function checks if in edit mode or not, if in edit mode it will cancel all the changes
@@ -105,7 +93,7 @@ public class view_user_activity extends AppCompatActivity {
             companyTV.setEnabled(false);
             phoneTV.setEnabled(false);
             orangeBtn.setEnabled(false);
-            fillUser();
+//            fillUser();
         }
     }
     /**
@@ -116,23 +104,20 @@ public class view_user_activity extends AppCompatActivity {
         if (greenBtn.getText().toString().equals("EDIT")) {
             greenBtn.setText("SAVE");
             redBtn.setText("CANCEL");
-            idTV.setEnabled(true);
             fnameTV.setEnabled(true);
             lnameTV.setEnabled(true);
             companyTV.setEnabled(true);
             phoneTV.setEnabled(true);
             orangeBtn.setEnabled(true);
         } else if (greenBtn.getText().toString().equals("SAVE")) {
-            ContentValues cv = new ContentValues();
-            db = hlp.getWritableDatabase();
-            cv.put(com.example.ex21.Users.FNAME, fnameTV.getText().toString());
-            cv.put(com.example.ex21.Users.LNAME, lnameTV.getText().toString());
-            cv.put(com.example.ex21.Users.COMPANY, companyTV.getText().toString());
-            cv.put(com.example.ex21.Users.ID, idTV.getText().toString());
-            cv.put(com.example.ex21.Users.PHONE, phoneTV.getText().toString());
-            db.update(com.example.ex21.Users.TABLE_USERS, cv, com.example.ex21.Users.KEY_ID + "=?", new String[]{userKeyId});
 
-            db.close();
+            user.setFNAME(fnameTV.getText().toString());
+            user.setLNAME(lnameTV.getText().toString());
+            user.setCOMPANY(companyTV.getText().toString());
+            user.setPHONE(phoneTV.getText().toString());
+
+            refUsers.child(user.getID()).setValue(user);
+
 
             Toast.makeText(this, "Saved Successfully!", Toast.LENGTH_LONG).show();
             finish();
@@ -149,14 +134,13 @@ public class view_user_activity extends AppCompatActivity {
         adb.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
-                ContentValues cv = new ContentValues();
-                if(isActive) cv.put(com.example.ex21.Users.ACTIVE, 0);
-                else cv.put(com.example.ex21.Users.ACTIVE, 1);
-                db = hlp.getWritableDatabase();
-                db.update(com.example.ex21.Users.TABLE_USERS, cv, com.example.ex21.Users.KEY_ID + "=?", new String[]{userKeyId});
-                db.close();
+                if(isActive) user.setACTIVE("0");
+                else user.setACTIVE("1");
 
-                Toast.makeText(view_user_activity.this, "Deleted Successfully!", Toast.LENGTH_LONG).show();
+                refUsers.child(user.getID()).setValue(user);
+
+                if(isActive) Toast.makeText(view_user_activity.this, "Deleted Successfully!", Toast.LENGTH_LONG).show();
+                else Toast.makeText(view_user_activity.this, "Restored Successfully!", Toast.LENGTH_LONG).show();
                 finish();
             }
         });

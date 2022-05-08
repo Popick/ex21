@@ -1,27 +1,31 @@
 package com.example.ex21;
 
-import android.content.ContentValues;
+import static com.example.ex21.FBref.refMeals;
+import static com.example.ex21.FBref.refUsers;
+
 import android.content.Intent;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
+
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.2
- * @since     19/2/2022
+ * @version    2
+ * @since     4/5/2022
  * first activity of making a new order
  */
 public class new_order_activity extends AppCompatActivity {
     Intent si;
-    SQLiteDatabase db;
-    HelperDB hlp;
-    ContentValues cv;
-    int allValid;
+    int allValid, howmany = 0;
     EditText appetizerET,mainET,sideET,dessertET,drinkET;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,8 +39,18 @@ public class new_order_activity extends AppCompatActivity {
         dessertET = (EditText) findViewById(R.id.inputdessert);
         drinkET = (EditText) findViewById(R.id.inputdrink);
 
-        hlp = new HelperDB(this);
-        cv = new ContentValues();
+        howmany=0;
+        refMeals.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    howmany++;
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
     }
 
     /**
@@ -70,6 +84,8 @@ public class new_order_activity extends AppCompatActivity {
             allValid++;
         }
         if (allValid == 5) {
+            System.out.println("howwwwmanyyy "+howmany);
+            si.putExtra("orderPos",howmany);
             startActivityForResult(si,1);
         }
     }
@@ -87,17 +103,11 @@ public class new_order_activity extends AppCompatActivity {
     protected void onActivityResult(int source, int good, @Nullable Intent data_back) {
         super.onActivityResult(source, good, data_back);
         if (good==RESULT_OK && source == 1){
-            cv.put(com.example.ex21.Meals.APPETIZER, appetizerET.getText().toString());
-            cv.put(com.example.ex21.Meals.MAIN, mainET.getText().toString());
-            cv.put(com.example.ex21.Meals.SIDE, sideET.getText().toString());
-            cv.put(com.example.ex21.Meals.DESSERT, dessertET.getText().toString());
-            cv.put(com.example.ex21.Meals.DRINK,drinkET.getText().toString());
 
-            db = hlp.getWritableDatabase();
-            db.insert(com.example.ex21.Meals.TABLE_MEALS, null, cv);
-            db.close();
-
+            refMeals.child(howmany+"").setValue(new Meals(appetizerET.getText().toString(),mainET.getText().toString(),sideET.getText().toString(),dessertET.getText().toString(),drinkET.getText().toString()));
+            Toast.makeText(this, "Saved Successfully!", Toast.LENGTH_LONG).show();
             finish();
+
         }
     }
 

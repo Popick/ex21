@@ -83,7 +83,7 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="30"
-                android:text="User Card ID:"
+                android:text="User ID:"
                 android:textAlignment="center"
                 android:textStyle="bold" />
 
@@ -106,14 +106,15 @@
                 android:layout_weight="10" />
 
             <EditText
-                android:id="@+id/userKeyIdInput"
+                android:id="@+id/userIdInput"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:digits="0123456789"
                 android:ems="10"
-                android:hint="Enter Number"
+                android:hint="Enter ID"
                 android:inputType="numberDecimal"
+                android:maxLength="9"
                 android:minHeight="48dp"
                 android:textAlignment="center" />
 
@@ -123,7 +124,6 @@
                 android:layout_weight="10" />
 
         </LinearLayout>
-
 
 
         <LinearLayout

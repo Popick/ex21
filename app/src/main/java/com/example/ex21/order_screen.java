@@ -1,10 +1,12 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refMeals;
+import static com.example.ex21.FBref.refOrders;
+import static com.example.ex21.FBref.refUsers;
+
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,28 +16,34 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ListView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.2
- * @since     21/2/2022
- *  activity for viewing all the orders
+ * @version 2.2
+ * @since 4/5/2022
+ * activity for viewing all the orders
  */
 public class order_screen extends AppCompatActivity implements AdapterView.OnItemClickListener {
-
     ListView lv;
-    SQLiteDatabase db;
-    HelperDB hlp;
     Intent viewOrderIntent, siUsers, siHome, siCompanies, siCredits;
-    Cursor crsr;
     ArrayList<String> tbl;
-    ArrayList<String> cardIDs;
+    ValueEventListener ordrListener;
+    ArrayList<String> ordrList = new ArrayList<String>();
+    ArrayList<Orders> ordrValues = new ArrayList<Orders>();
+    ArrayList<String> ordrPositions = new ArrayList<String>();
     ArrayAdapter<String> adp;
     AlertDialog.Builder adb;
-    final String[] sortAD = {"Date", "Name A→Z", "Restaurant A→Z"};
+    final String[] sortAD = {"Date", "Name", "Restaurant"};
     String sort;
     ImageButton fltrBtn, addBtn;
 
@@ -45,9 +53,8 @@ public class order_screen extends AppCompatActivity implements AdapterView.OnIte
         setContentView(R.layout.activity_table_screen);
 
         viewOrderIntent = new Intent(this, com.example.ex21.view_order_activity.class);
-        hlp = new HelperDB(this);
 
-        siUsers = new Intent(this, com.example.ex21.users_screen.class);
+        siUsers = new Intent(this, com.example.ex21.order_screen.class);
         siHome = new Intent(this, com.example.ex21.MainActivity.class);
         siCompanies = new Intent(this, com.example.ex21.comp_screen.class);
         siCredits = new Intent(this, com.example.ex21.credits_activity.class);
@@ -71,39 +78,66 @@ public class order_screen extends AppCompatActivity implements AdapterView.OnIte
     /**
      * The function loads all the orders to the List View on the screen.
      *
-     * @param sortPar   Description:  The parameter contains the information of how the user wants to
-     *                  sort the orders that he requests from the query.
+     * @param sortPar Description:  The parameter contains the information of how the user wants to
+     *                sort the orders that he requests from the query.
      */
     public void update_Orders(String sortPar) {
-        db = hlp.getWritableDatabase();
-        tbl = new ArrayList<>();
-        cardIDs = new ArrayList<>();
-        crsr = db.query(com.example.ex21.Orders.TABLE_ORDERS, null, null, null, null, null, sortPar);
-
-        int col1 = crsr.getColumnIndex(com.example.ex21.Orders.KEY_ID);
-        int col2 = crsr.getColumnIndex(com.example.ex21.Orders.RESTAURANT_NAME);
-        int col3 = crsr.getColumnIndex(com.example.ex21.Orders.USER_NAME);
-        int col4 = crsr.getColumnIndex(com.example.ex21.Orders.DATE);
-
-        crsr.moveToFirst();
-        while (!crsr.isAfterLast()) {
-            int key = crsr.getInt(col1);
-            String rName = crsr.getString(col2);
-            String uName = crsr.getString(col3);
-            String date = crsr.getString(col4);
-            String tmp = "" + key + ". User: " + uName + ", Shop: " + rName + ", At " + date;
-            tbl.add(tmp);
-            cardIDs.add(key + "");
-            crsr.moveToNext();
+        Query query;
+        if (sortPar == null) {
+            query = refOrders.orderByKey();
+        } else {
+            query = refOrders.orderByChild(sortPar);
         }
-        crsr.close();
-        db.close();
-        adp = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, tbl);
-        lv.setAdapter(adp);
+
+        ordrListener = new ValueEventListener() {
+
+
+            /**
+             * This method will be called with a snapshot of the data at this location. It will also be called
+             * each time that data changes.
+             *
+             * @param dS The current data at the location
+             */
+
+            @Override
+            public void onDataChange(DataSnapshot dS) {
+                ordrList.clear();
+                ordrValues.clear();
+                for (DataSnapshot data : dS.getChildren()) {
+                    String str1 = (String) data.getKey();
+                    ordrPositions.add(str1);
+                    Orders ordrTmp = data.getValue(Orders.class);
+                    ordrValues.add(ordrTmp);
+                    ordrList.add(ordrTmp.getUSER_NAME() + ", " + ordrTmp.getRESTAURANT_NAME() + " (At: " + ordrTmp.getDATE() + ")");
+
+                }
+                if (sortPar == null) {
+                    Collections.reverse(ordrList);
+                }
+                adp = new ArrayAdapter<String>(order_screen.this, R.layout.support_simple_spinner_dropdown_item, ordrList);
+                lv.setAdapter(adp);
+            }
+
+
+            /**
+             * This method will be triggered in the event that this listener either failed at the server, or
+             * is removed as a result of the security and Firebase Database rules. For more information on
+             * securing your data, see: <a
+             * href="https://firebase.google.com/docs/database/security/quickstart" target="_blank"> Security
+             * Quickstart</a>
+             *
+             * @param error A description of the error that occurred
+             */
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        query.addValueEventListener(ordrListener);
+
     }
 
     /**
-     *    The function sends you to the last activity.
+     * The function sends you to the last activity.
      */
     public void back(View view) {
         finish();
@@ -120,11 +154,11 @@ public class order_screen extends AppCompatActivity implements AdapterView.OnIte
             @Override
             public void onClick(DialogInterface dialogInterface, int pos) {
                 if (pos == 0) {
-                    sort = com.example.ex21.Orders.KEY_ID;
+                    sort = null;
                 } else if (pos == 1) {
-                    sort = com.example.ex21.Orders.USER_NAME;
+                    sort = "user_NAME";
                 } else if (pos == 2) {
-                    sort = com.example.ex21.Orders.RESTAURANT_NAME;
+                    sort = "restaurant_NAME";
                 }
                 update_Orders(sort);
             }
@@ -141,9 +175,22 @@ public class order_screen extends AppCompatActivity implements AdapterView.OnIte
      */
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        viewOrderIntent.putExtra("id", cardIDs.get(position));
 
-        startActivity(viewOrderIntent);
+        refMeals.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    if (ordrPositions.get(position).equals((String) data.getKey())) {
+                        viewOrderIntent.putExtra("order", ordrValues.get(position));
+                        viewOrderIntent.putExtra("meal", data.getValue(Meals.class));
+                    }
+                }
+                startActivity(viewOrderIntent);
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
     }
 
     /**

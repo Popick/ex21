@@ -1,9 +1,10 @@
 package com.example.ex21;
 
-import android.content.ContentValues;
+import static com.example.ex21.FBref.refComps;
+import static com.example.ex21.FBref.refOrders;
+import static com.example.ex21.FBref.refUsers;
+
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -12,7 +13,13 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -20,23 +27,19 @@ import java.util.Calendar;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.2
- * @since     20/2/2022
+ * @version 2
+ * @since 4/5/2022
  * second activity of making a new order
  */
-public class new_order_second_activity extends AppCompatActivity implements AdapterView.OnItemSelectedListener{
-    Intent gi = getIntent();
+public class new_order_second_activity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+    Intent gi;
     Spinner sp;
-    SQLiteDatabase db;
-    HelperDB hlp;
-    Cursor crsr;
+    int orderPos;
     ArrayList<String> tbl;
-    ArrayList<String> restIDlist;
+    ArrayList<String> restIDList,restNameList;
     ArrayAdapter<String> adp;
-    EditText userKeyIdET;
-    String user_order_key_id,user_order_name,restaurant_order_key_id,restaurant_order_name;
-    int col1,col2;
-    ContentValues cv;
+    EditText userIdET;
+    String user_order_key_id, user_order_name, restaurant_order_key_id, restaurant_order_name;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,38 +47,41 @@ public class new_order_second_activity extends AppCompatActivity implements Adap
         setContentView(R.layout.activity_new_order_second);
 
         sp = (Spinner) findViewById(R.id.spinnerComp);
-        userKeyIdET = (EditText) findViewById(R.id.userKeyIdInput);
+        userIdET = (EditText) findViewById(R.id.userIdInput);
 
-        hlp = new HelperDB(this);
+        orderPos = getIntent().getIntExtra("orderPos", -1);
 
         sp.setOnItemSelectedListener(this);
 
-        db = hlp.getWritableDatabase();
         tbl = new ArrayList<>();
-        restIDlist = new ArrayList<>();
+        restIDList = new ArrayList<>();
+        restNameList = new ArrayList<>();
         tbl.add("Choose Restaurant:");
-        restIDlist.add("0");
-        crsr = db.query(Companies.TABLE_COMPANIES, null, Companies.ACTIVE + "=?", new String[]{"1"}, null, null, null);
+        restIDList.add("0");
+        restNameList.add("0");
 
-        col1 = crsr.getColumnIndex(Companies.KEY_ID);
-        col2 = crsr.getColumnIndex(Companies.NAME);
+        refComps.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    String str1 = (String) data.getKey();
+                    Companies cmpTmp = data.getValue(Companies.class);
+                    if (cmpTmp.getACTIVE().equals("1")) {
+                        tbl.add(cmpTmp.getNAME());
+                        restIDList.add(str1);
+                        restNameList.add(cmpTmp.getNAME());
+                    }
+                }
+            }
 
-        crsr.moveToFirst();
-        while (!crsr.isAfterLast()) {
-            int key = crsr.getInt(col1);
-            String name = crsr.getString(col2);
-            String tmp = "" + key + ". " + name;
-            tbl.add(tmp);
-            restIDlist.add(key+"");
-            crsr.moveToNext();
-        }
-        crsr.close();
-        db.close();
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
+
+
         adp = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, tbl);
         sp.setAdapter(adp);
-
-        cv = new ContentValues();
-
     }
 
     /**
@@ -83,82 +89,75 @@ public class new_order_second_activity extends AppCompatActivity implements Adap
      * and sends you back to the last activity.
      */
     public void finish(View view) {
-        db = hlp.getWritableDatabase();
-        crsr = db.query(com.example.ex21.Users.TABLE_USERS, null, com.example.ex21.Users.KEY_ID + "=?", new String[]{userKeyIdET.getText().toString()}, null, null, null);
-        int col1 = crsr.getColumnIndex(com.example.ex21.Users.ACTIVE);
-        crsr.moveToFirst();
-        try {
-            if (crsr.getString(col1).equals("0")){
-                Toast.makeText(this,"User Don't work", Toast.LENGTH_LONG).show();
-            }else{
-                user_order_key_id=userKeyIdET.getText().toString();
+        int[] flag = {0};
+
+        refUsers.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dS) {
+                for (DataSnapshot data : dS.getChildren()) {
+                    String str1 = (String) data.getKey();
+                    Users usrTmp = data.getValue(Users.class);
+                    if (usrTmp.getACTIVE().equals("1")) {
+                        System.out.println(str1);
+                        if (str1.equals(userIdET.getText().toString())) {
+                            flag[0] = 1;
+                            user_order_name = usrTmp.getFNAME();
+                        } else if (str1.equals(userIdET.getText().toString())) {
+                            flag[0] = 2;
+                        }
+                    }
+                }
+                if (flag[0] == 0) {
+                    Toast.makeText(new_order_second_activity.this, "User Doesn't exists", Toast.LENGTH_LONG).show();
+                } else if (flag[0] == 2) {
+                    Toast.makeText(new_order_second_activity.this, "User Doesn't work", Toast.LENGTH_LONG).show();
+                } else {
+                    user_order_key_id = userIdET.getText().toString();
+                }
+                if(user_order_key_id!=null && restaurant_order_key_id!=null) {
+                    Calendar calendar = Calendar.getInstance();
+                    SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy HH:mm");
+                    refOrders.child(orderPos+"").setValue(new Orders(restaurant_order_key_id,restaurant_order_name,user_order_key_id,user_order_name,formatter.format(calendar.getTime())));
+
+
+
+                    setResult(RESULT_OK, gi);
+                    finish();
+                }
+                else{
+                    Toast.makeText(new_order_second_activity.this, "ERROR", Toast.LENGTH_LONG).show();
+                }
             }
-        }catch (Exception e) {
-            Toast.makeText(this, "User Don't exists", Toast.LENGTH_LONG).show();
-        }
-        crsr.close();
-        db.close();
 
-        if(user_order_key_id!=null && restaurant_order_key_id!=null) {
-
-            db = hlp.getWritableDatabase();
-            crsr = db.query(com.example.ex21.Users.TABLE_USERS, null, com.example.ex21.Users.KEY_ID + "=?", new String[]{userKeyIdET.getText().toString()}, null, null, null);
-            col1 = crsr.getColumnIndex(com.example.ex21.Users.FNAME);
-            crsr.moveToFirst();
-            user_order_name = crsr.getString(col1);
-            crsr.close();
-            db.close();
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        });
 
 
-            db = hlp.getWritableDatabase();
-            crsr = db.query(Companies.TABLE_COMPANIES, null, Companies.KEY_ID + "=?", new String[]{restaurant_order_key_id}, null, null, null);
-            col1 = crsr.getColumnIndex(Companies.NAME);
-            crsr.moveToFirst();
-            restaurant_order_name = crsr.getString(col1);
-            crsr.close();
-            db.close();
-
-            db = hlp.getWritableDatabase();
-            cv.put(com.example.ex21.Orders.USER_ID, user_order_key_id);
-            cv.put(com.example.ex21.Orders.USER_NAME, user_order_name);
-            cv.put(com.example.ex21.Orders.RESTAURANT_ID, restaurant_order_key_id);
-            cv.put(com.example.ex21.Orders.RESTAURANT_NAME, restaurant_order_name);
-
-            Calendar calendar = Calendar.getInstance();
-            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yy HH:mm");
-            cv.put(com.example.ex21.Orders.DATE,formatter.format(calendar.getTime()));
-
-
-            db = hlp.getWritableDatabase();
-            db.insert(com.example.ex21.Orders.TABLE_ORDERS, null, cv);
-            db.close();
-
-            setResult(RESULT_OK, gi);
-            finish();
-        }
-        else{
-            Toast.makeText(this, "ERROR", Toast.LENGTH_LONG).show();
-        }
     }
+
     /**
      * The function sends you back to the last activity.
      */
     public void back(View view) {
-        setResult(RESULT_CANCELED,gi);
+        setResult(RESULT_CANCELED, gi);
         finish();
     }
+
     /**
-     *
      * The function sets the selected restaurant.
-     *
      */
     @Override
     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-        if(i==0){
-            restaurant_order_key_id =null;
+        if (i == 0) {
+            restaurant_order_key_id = null;
             restaurant_order_name = null;
-        }else{
-            restaurant_order_key_id = restIDlist.get(i);
+        } else {
+            restaurant_order_key_id = restIDList.get(i);
+            restaurant_order_name = restNameList.get(i);
+            System.out.println("i: "+i+"others: "+restaurant_order_key_id+" "+restaurant_order_name);
+
         }
     }
 

@@ -1,10 +1,10 @@
 package com.example.ex21;
 
+import static com.example.ex21.FBref.refComps;
+
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,31 +14,36 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.ListView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 
 /**
  * @author Etay Sabag <itay45520@gmail.com>
- * @version    1.3
- * @since     18/2/2022
+ * @version   2
+ * @since     4/5/2022
  *  activity for viewing all the companies
  */
 public class comp_screen extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
     ListView lv;
-    SQLiteDatabase db;
-    HelperDB hlp;
     ImageButton addBtn;
     Intent newCompanyIntent, viewCompanyIntent, siUsers, siHome, siViewOrder, siCredits;
-    Cursor crsr;
-    ArrayList<String> tbl;
-    ArrayList<String> cardIDs;
+    ValueEventListener cmpListener;
+    ArrayList<String> cmpList = new ArrayList<String>();
+    ArrayList<Companies> cmpValues = new ArrayList<Companies>();
     ArrayAdapter<String> adp;
     AlertDialog.Builder adb;
     final String[] filterAD = {"Active", "Inactive"};
-    final String[] sortAD = {"Key ID", "Name A→Z", "Name Z→A", "Tax Number 0→9"};
-    String filter = "1", sort;
+    final String[] sortAD = {"TAX ID", "Name"};
+    String filter = "1";
+    String sort = "taxid";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,7 +51,6 @@ public class comp_screen extends AppCompatActivity implements AdapterView.OnItem
         setContentView(R.layout.activity_table_screen);
         newCompanyIntent = new Intent(this, com.example.ex21.new_company_activity.class);
         viewCompanyIntent = new Intent(this, com.example.ex21.view_company_activity.class);
-        hlp = new HelperDB(this);
         addBtn = (ImageButton) findViewById(R.id.addBtn);
         addBtn.setImageResource(R.drawable.addcomp);
 
@@ -76,30 +80,48 @@ public class comp_screen extends AppCompatActivity implements AdapterView.OnItem
      *                  sort the restaurants that he requests from the query.
      */
     public void update_comps(String filterPar, String sortPar) {
-        db = hlp.getWritableDatabase();
-        tbl = new ArrayList<>();
-        cardIDs = new ArrayList<>();
-        if (filterPar != null)
-            crsr = db.query(Companies.TABLE_COMPANIES, null, Companies.ACTIVE + "=?", new String[]{filterPar}, null, null, sortPar);
-        else
-            crsr = db.query(Companies.TABLE_COMPANIES, null, null, null, null, null, sortPar);
+        Query query = refComps.orderByChild(sortPar);
+        cmpListener = new ValueEventListener() {
 
-        int col1 = crsr.getColumnIndex(Companies.KEY_ID);
-        int col2 = crsr.getColumnIndex(Companies.NAME);
 
-        crsr.moveToFirst();
-        while (!crsr.isAfterLast()) {
-            int key = crsr.getInt(col1);
-            String name = crsr.getString(col2);
-            String tmp = "" + key + ". " + name;
-            tbl.add(tmp);
-            cardIDs.add(key + "");
-            crsr.moveToNext();
-        }
-        crsr.close();
-        db.close();
-        adp = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, tbl);
-        lv.setAdapter(adp);
+            /**
+             * This method will be called with a snapshot of the data at this location. It will also be called
+             * each time that data changes.
+             *
+             * @param dS The current data at the location
+             */
+
+            @Override
+            public void onDataChange(DataSnapshot dS) {
+                cmpList.clear();
+                cmpValues.clear();
+                for (DataSnapshot data : dS.getChildren()) {
+                    String str1 = (String) data.getKey();
+                    Companies cmpTmp = data.getValue(Companies.class);
+                    if (filterPar == null || cmpTmp.getACTIVE().equals(filterPar)){
+                        cmpValues.add(cmpTmp);
+                        cmpList.add(cmpTmp.getNAME() + " (id: " + str1 + ")");
+                    }
+                }
+                adp = new ArrayAdapter<String>(comp_screen.this, R.layout.support_simple_spinner_dropdown_item, cmpList);
+                lv.setAdapter(adp);
+            }
+
+
+            /**
+             * This method will be triggered in the event that this listener either failed at the server, or
+             * is removed as a result of the security and Firebase Database rules. For more information on
+             * securing your data, see: <a
+             * href="https://firebase.google.com/docs/database/security/quickstart" target="_blank"> Security
+             * Quickstart</a>
+             *
+             * @param error A description of the error that occurred
+             */
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        query.addValueEventListener(cmpListener);
     }
 
     /**
@@ -127,13 +149,9 @@ public class comp_screen extends AppCompatActivity implements AdapterView.OnItem
             @Override
             public void onClick(DialogInterface dialogInterface, int pos) {
                 if (pos == 0) {
-                    sort = Companies.KEY_ID;
+                    sort = "tax_ID";
                 } else if (pos == 1) {
-                    sort = Companies.NAME;
-                } else if (pos == 2) {
-                    sort = Companies.NAME + " DESC";
-                } else if (pos == 3) {
-                    sort = Companies.TAX_ID;
+                    sort = "name";
                 }
                 update_comps(filter, sort);
             }
@@ -196,7 +214,7 @@ public class comp_screen extends AppCompatActivity implements AdapterView.OnItem
      */
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        viewCompanyIntent.putExtra("id", cardIDs.get(position));
+        viewCompanyIntent.putExtra("cmp", cmpValues.get(position));
         startActivity(viewCompanyIntent);
     }
 
